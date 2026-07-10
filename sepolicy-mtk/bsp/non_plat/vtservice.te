@@ -148,8 +148,8 @@ allow vtservice cameraserver:fd use;
 #============= vtservice ==============
 #Change VTS uid to media
 #=====================================
-allow vtservice mediacodec_service:service_manager find;
-allow vtservice mediacodec:binder call;
+# mediacodec_service/mediacodec (raw binder) no longer exist in AOSP;
+# superseded by the OMX HAL (hal_omx_hwservice).
 allow vtservice qtaguid_device:chr_file r_file_perms;
 allow vtservice qtaguid_proc:file rw_file_perms;
 allow vtservice priv_app:binder call;

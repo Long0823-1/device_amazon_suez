@@ -1,2 +1,0 @@
-add_lunch_combo lineage_suez-userdebug
-add_lunch_combo lineage_suez-eng

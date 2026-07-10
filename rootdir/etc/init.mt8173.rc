@@ -5,7 +5,7 @@ on early-init
     chmod 0755 /sys/kernel/debug
 
 on init
-    export LD_PRELOAD $LD_PRELOAD:/system/vendor/lib/libaudio_shim.so
+    export LD_PRELOAD ${LD_PRELOAD}:/system/vendor/lib/libaudio_shim.so
 
     mount tmpfs tmpfs /mnt/media_rw/ mode=0755,uid=1000,gid=1000
     mkdir /mnt/media_rw/usbotg 0700 media_rw media_rw
@@ -50,7 +50,31 @@ on fs
     mount_all /vendor/etc/fstab.mt8173
     write /proc/bootprof "INIT:Mount_END"
 
-on post-fs  
+on post-fs
+    # Diagnostic: continuously stream the live kernel console log to /cache
+    # as it happens, rather than relying on a post-crash mechanism (pstore/
+    # ram console) that requires this same kernel to survive and cooperate
+    # to read it back out. /proc/kmsg blocks and yields new lines as they
+    # are logged, so whatever was written before a hang/freeze should
+    # already be safely on disk (ext4, synced every 0.2s) even if the
+    # device is later hard power-cycled to recover it. Started first,
+    # before anything else in this block, since reboots have been
+    # happening in well under 2 seconds.
+    start klog_capture
+    # Diagnostic: give klog_capture's forked "cat /proc/kmsg" a moment to
+    # actually get scheduled and start writing before anything else runs,
+    # since on unlucky boots the whole system has frozen so quickly that
+    # live_kmsg.log never even gets created.
+    exec /system/bin/sleep 1
+
+    # Diagnostic: rescue any pstore data left by a previous crashed boot
+    # into /cache before anything later in boot has a chance to hang, so
+    # it can be pulled from TWRP afterward (TWRP's own kernel lacks pstore
+    # support, so it cannot read /sys/fs/pstore directly).
+    mount pstore pstore /sys/fs/pstore
+    mkdir /cache/pstore_dump 0770 root root
+    exec - root root -- /system/bin/sh -c "cp -a /sys/fs/pstore/. /cache/pstore_dump/ > /cache/pstore_dump.log 2>&1"
+
     # Allow writing to the kernel trace log.
     chmod 0222 /sys/kernel/debug/tracing/trace_marker
 
@@ -87,6 +111,13 @@ on post-fs
     chown system system /sys/kernel/debug/ion/heaps/ion_mm_heap
 
 on post-fs-data
+    # Diagnostic: continuously capture logcat (userspace/framework log) to
+    # /cache alongside the kernel log, in case boot gets far enough to
+    # reach userspace services (system_server, zygote, etc.) where issues
+    # wouldn't show up in kmsg alone. logd may not be up yet the instant
+    # this fires, so retry until logcat succeeds.
+    start logcat_capture
+
     start amzn_drmprov
     start amzn_dha_hmac
 
@@ -385,26 +416,35 @@ on post-fs-data
 
     # Define TCP buffer sizes for various networks
 #   ReadMin, ReadInitial, ReadMax, WriteMin, WriteInitial, WriteMax,
-    exec /system/bin/setprop net.tcp.buffersize.default 4096,87380,524288,4096,16384,524288
-    exec /system/bin/setprop net.tcp.buffersize.wifi    524288,1048576,2097152,262144,524288,1048576
-    exec /system/bin/setprop net.tcp.buffersize.lte     524288,1048576,2097152,262144,524288,1048576
-    exec /system/bin/setprop net.tcp.buffersize.umts    4094,87380,524288,4096,16384,524288
-    exec /system/bin/setprop net.tcp.buffersize.hspa    4094,87380,524288,4096,16384,524288
-    exec /system/bin/setprop net.tcp.buffersize.hsupa   4094,87380,524288,4096,16384,524288
-    exec /system/bin/setprop net.tcp.buffersize.hsdpa   4094,87380,524288,4096,16384,524288
-    exec /system/bin/setprop net.tcp.buffersize.hspap   4094,87380,1220608,4096,16384,1220608
-    exec /system/bin/setprop net.tcp.buffersize.edge    4093,26280,35040,4096,16384,35040
-    exec /system/bin/setprop net.tcp.buffersize.gprs    4092,8760,11680,4096,8760,11680
+    # Diagnostic: use the native setprop builtin instead of exec'ing
+    # /system/bin/setprop for each of these -- forking a process per line
+    # here (plus the sleeps that were here) was long enough to risk
+    # tripping a boot watchdog. setprop is a plain init builtin and does
+    # not fork at all.
+    setprop net.tcp.buffersize.default 4096,87380,524288,4096,16384,524288
+    setprop net.tcp.buffersize.wifi    524288,1048576,2097152,262144,524288,1048576
+    setprop net.tcp.buffersize.lte     524288,1048576,2097152,262144,524288,1048576
+    setprop net.tcp.buffersize.umts    4094,87380,524288,4096,16384,524288
+    setprop net.tcp.buffersize.hspa    4094,87380,524288,4096,16384,524288
+    setprop net.tcp.buffersize.hsupa   4094,87380,524288,4096,16384,524288
+    setprop net.tcp.buffersize.hsdpa   4094,87380,524288,4096,16384,524288
+    setprop net.tcp.buffersize.hspap   4094,87380,1220608,4096,16384,1220608
+    setprop net.tcp.buffersize.edge    4093,26280,35040,4096,16384,35040
+    setprop net.tcp.buffersize.gprs    4092,8760,11680,4096,8760,11680
 
-    exec /system/bin/setprop persist.sys.strictmode.disable 1
+    setprop persist.sys.strictmode.disable 1
 
     # for ppp options file
     mkdir /data/misc/ppp 0770 bluetooth net_bt
 
     # FM Radio device node
-    exec /system/bin/mknod /dev/fm     c 193 0;
-    chmod 0660 /dev/fm
-    chown media media /dev/fm
+    # Diagnostic: the live kmsg capture showed this exact exec as the last
+    # thing logged before a total system freeze (no further log lines for
+    # 5+ minutes), consistently across boots. Disabled to test whether this
+    # exact command is where the hang occurs.
+    # exec /system/bin/mknod /dev/fm     c 193 0;
+    # chmod 0660 /dev/fm
+    # chown media media /dev/fm
 
     # device apc settings
 
@@ -523,7 +563,7 @@ on post-fs-data
     mkdir /data/agps_supl 0771 gps system
 
     # Recycle stuffs
-    /system/bin/rm -f /cache/.ipoh.img
+    rm /cache/.ipoh.img
     
     chmod 0666 /dev/exm0
 
@@ -679,6 +719,18 @@ on property:vold.decrypt=trigger_shutdown_framework
 on property:dev.bootcomplete=1
     start audiofix
 
+service klog_capture /system/bin/sh -c "cat /proc/kmsg >> /cache/live_kmsg.log & while true; do sync; sleep 0.2; done"
+    class core
+    user root
+    group root
+    seclabel u:r:init:s0
+
+service logcat_capture /system/bin/sh -c "while ! logcat -v threadtime >> /cache/live_logcat.log 2>&1; do sleep 0.5; done & while true; do sync; sleep 0.2; done"
+    class core
+    user root
+    group root log
+    seclabel u:r:init:s0
+
 service kisd /vendor/bin/kisd
 	user root
 	group system
@@ -771,10 +823,14 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
     disabled
     oneshot
 
-service enableswap /system/bin/sh /enableswap.sh
-    class late_start
-    oneshot
-    seclabel u:r:enableswap:s0
+# Diagnostic: disabled. 'u:r:enableswap:s0' does not resolve in the loaded
+# sepolicy, and init's setexeccon() treats that as fatal (not just an avc
+# denial), aborting this service's forked child with SIGABRT on every boot
+# (see tombstone for pid "enableswap"/"init"). Not needed for basic boot.
+#service enableswap /system/bin/sh /enableswap.sh
+#    class late_start
+#    oneshot
+#    seclabel u:r:enableswap:s0
 
 service swapoff_action /system/bin/sh /disableswap.sh
     class main
@@ -900,10 +956,14 @@ service pvrsrvctl /vendor/bin/pvrsrvctl --no-module  --start
 	oneshot
  
 # GuiExt Server init
-service guiext-server /vendor/bin/guiext-server
-    class main
-    user system
-    group system graphics
+# Diagnostic: disabled. guiext-server fails to link against the LOS18.1
+# libgui_ext.so shim: SurfaceComposerClient::getBuiltInDisplay() was removed
+# from newer libgui, so it CANNOT LINK EXECUTABLE on every restart attempt
+# ("class main" auto-restarts it forever). Not required for basic boot.
+#service guiext-server /vendor/bin/guiext-server
+#    class main
+#    user system
+#    group system graphics
 
 service rpmb_svc /vendor/bin/rpmb_svc
     class main

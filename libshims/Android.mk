@@ -6,7 +6,12 @@ LOCAL_MODULE := libshim_lab126
 LOCAL_SHARED_LIBRARIES := liblog
 LOCAL_CFLAGS := -Wno-format-security -Wno-unused-parameter
 LOCAL_MODULE_TAGS := optional
-LOCAL_PROPRIETARY_MODULE := true
+# Must install to /system (not /vendor): this shims /system/lib(64)/liblog.so
+# itself (see device/amazon/suez/shims.mk), and APEX-bundled binaries resolve
+# liblog's dependencies through the "system" linker namespace, which does not
+# see /vendor. Installing this as a proprietary/vendor module made it
+# invisible to that namespace, causing every APEX binary linked against
+# liblog (mediaswcodec, statsd, ...) to fail to link at boot.
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)

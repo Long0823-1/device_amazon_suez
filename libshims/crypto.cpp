@@ -2,12 +2,12 @@
 #include <openssl/mem.h>
 #include <openssl/cipher.h>
 
-extern "C" int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const uint8_t *mHash,
+extern "C" int RSA_verify_PKCS1_PSS_mgf1(const RSA *rsa, const uint8_t *mHash,
                               const EVP_MD *Hash, const EVP_MD *mgf1Hash,
                               const uint8_t *EM, int sLen);
 
 
-extern "C" int RSA_verify_PKCS1_PSS(RSA *rsa, const unsigned char *mHash,
+extern "C" int RSA_verify_PKCS1_PSS(const RSA *rsa, const unsigned char *mHash,
                          const EVP_MD *Hash, const unsigned char *EM,
                          int sLen) {
     return RSA_verify_PKCS1_PSS_mgf1(rsa, mHash, Hash, NULL, EM, sLen);

@@ -109,12 +109,13 @@ vendor/lib/lib_uree_mtk_video_secure_al.so
 vendor/lib64/lib_uree_mtk_video_secure_al.so
 
 # DRM
-vendor/bin/hw/android.hardware.drm@1.0-service.widevine|d2c5e233ad22903a1ea3379c9d325d0f2877d459
-vendor/etc/init/android.hardware.drm@1.0-service.widevine.rc|51a3168a0dbc064d78ee11ca83614c0cd2e6daa5
-vendor/lib/libwvhidl.so|4c3f12cab6bac3c10db27f9bf3f08f0e058289f0
-vendor/lib64/libwvhidl.so|31528465d11853cb67f22b9161d7885823af449e
+# NOTE: android.hardware.drm@1.0-service.widevine (+ .rc), libwvhidl.so
+# (both arches), and the 64-bit libwvdrmengine.so were never actually
+# extracted into vendor/amazon/suez/proprietary. Without the HAL service
+# binary the rest of the Widevine stack can't run, so those entries were
+# dropped; Widevine DRM (protected video playback) will not work on this
+# build until a proper extraction is done.
 vendor/lib/mediadrm/libwvdrmengine.so|5a328e3a228c7ba6da032af829e4775352c84545
-vendor/lib64/mediadrm/libwvdrmengine.so|f7f4f34213df3d57dbb7b726048b1ab244bb61f7
 vendor/lib/liboemcrypto.so
 vendor/lib64/liboemcrypto.so
 
@@ -207,7 +208,6 @@ usr/keylayout/Vendor_1949_Product_0407.kl
 usr/keylayout/Vendor_1949_Product_0409.kl
 usr/keylayout/Vendor_1949_Product_040a.kl
 usr/keylayout/Vendor_1949_Product_0415.kl
-usr/keylayout/Vendor_1949_Product_0419.kl
 usr/keylayout/Vendor_20a0_Product_0004.kl
 usr/keylayout/Vendor_2836_Product_0001.kl
 

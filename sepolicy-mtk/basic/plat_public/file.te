@@ -1,0 +1,17 @@
+# ==============================================
+# MTK Policy Rule
+# ==============================================
+
+# Removed from AOSP in API 29+ (qtaguid replaced by eBPF traffic accounting),
+# but the mt8173 kernel still exposes /proc/net/xt_qtaguid. Declared here
+# (rather than non_plat) because both platform-private and vendor .te files
+# reference these types.
+type qtaguid_proc, fs_type, proc_type;
+
+# Removed from AOSP in API 29+, but this device's vold/storagemanagerd
+# interaction still relies on a labeled /dev/socket/vold control socket.
+type vold_socket, file_type;
+
+# Removed from AOSP in API 29+, but several MTK daemons (rild, system_app,
+# thermal, ipsec, etc.) still connect to netd's /dev/socket/netd directly.
+type netd_socket, file_type;

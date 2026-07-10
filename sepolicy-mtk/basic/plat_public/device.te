@@ -1,0 +1,10 @@
+# ==============================================
+# MTK Policy Rule
+# ==============================================
+
+# Removed from AOSP in API 29+ (raw NAND storage / /dev/alarm are legacy
+# kernel interfaces the mt8173 kernel still exposes). Declared here (rather
+# than non_plat) because both platform-private and vendor .te files
+# reference these types.
+type mtd_device, dev_type;
+type alarm_device, dev_type;

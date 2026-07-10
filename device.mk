@@ -1,6 +1,13 @@
 DEVICE := device/amazon/suez
 VENDOR := vendor/amazon/suez
 
+# extract_utils.sh's setup_vendor registers PRODUCT_SOONG_NAMESPACES as
+# vendor/amazon/ in suez-vendor.mk, but the soong_namespace{} it generates
+# actually lives at vendor/amazon/suez/Android.bp, one level deeper. Without
+# this, Make-side modules (e.g. libbluetooth_mtk) can't resolve prebuilt
+# Soong modules declared under vendor/amazon/suez (e.g. libnvram).
+PRODUCT_SOONG_NAMESPACES += $(VENDOR)
+
 # Device overlay
 DEVICE_PACKAGE_OVERLAYS += $(DEVICE)/overlay
 
@@ -89,7 +96,8 @@ PRODUCT_PACKAGES += \
 
 # Graphics
 PRODUCT_PACKAGES += \
-    libion
+    libion \
+    libunwind
 
 # Headphones
 PRODUCT_PACKAGES += \

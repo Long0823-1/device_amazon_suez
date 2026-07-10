@@ -55,9 +55,8 @@ allow installd platform_app:fd use;
 # Date : WK15.32
 # Operation : Migration
 # Purpose : disable AT_SECURE for LD_PRELOAD
-userdebug_or_eng(`
-  allow installd dex2oat:process noatsecure;
-')
+# dex2oat is a platform-private coredomain; vendor policy can't reference it
+# directly under Treble.
 
 # Date : WK16.09
 # Operation : Migration
