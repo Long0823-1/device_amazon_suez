@@ -85,6 +85,14 @@ LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
+LOCAL_SRC_FILES := aeabi.c
+LOCAL_MODULE := libshim_aeabi
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+LOCAL_PROPRIETARY_MODULE := true
+include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
 LOCAL_SRC_FILES := audio/libaudio_shim.c
 LOCAL_LDLIBS += -ldl
 LOCAL_C_INCLUDES += external/tinyalsa/include system/core/include/cutils

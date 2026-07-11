@@ -8,7 +8,8 @@ TARGET_LD_SHIM_LIBS += \
 	/vendor/bin/audiocmdservice_atci|libshim_media.so \
 	/vendor/lib/libasp.so|libshim_binder.so \
 	/vendor/lib/hw/audio.primary.mt8173.so|libshim_atomic.so \
-	/vendor/lib64/hw/audio.primary.mt8173.so|libshim_atomic.so
+	/vendor/lib64/hw/audio.primary.mt8173.so|libshim_atomic.so \
+	/vendor/lib/hw/audio.primary.mt8173.so|libshim_aeabi.so
 
 # Camera
 

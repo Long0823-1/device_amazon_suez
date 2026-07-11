@@ -5,7 +5,17 @@ on early-init
     chmod 0755 /sys/kernel/debug
 
 on init
-    export LD_PRELOAD ${LD_PRELOAD}:/system/vendor/lib/libaudio_shim.so
+    # NOTE: libaudio_shim.so (H2W headphone/speaker auto-switch, via
+    # mixer_ctl_set_enum_by_string interposition) is deliberately NOT
+    # LD_PRELOADed here. Setting LD_PRELOAD in "on init" applies to every
+    # process spawned system-wide from this point on, not just the audio
+    # HAL/audioserver that actually needs it — a from-scratch clean build
+    # with this preload enabled bootlooped with no boot logo (see
+    # suez-boot-regression memory), strongly suggesting this shim breaks
+    # something when force-loaded into arbitrary unrelated processes. If
+    # the H2W auto-switch feature is wanted, scope it with `setenv
+    # LD_PRELOAD ...` inside the audioserver service definition instead
+    # of a system-wide `export` here.
 
     mount tmpfs tmpfs /mnt/media_rw/ mode=0755,uid=1000,gid=1000
     mkdir /mnt/media_rw/usbotg 0700 media_rw media_rw
@@ -51,29 +61,24 @@ on fs
     write /proc/bootprof "INIT:Mount_END"
 
 on post-fs
-    # Diagnostic: continuously stream the live kernel console log to /cache
-    # as it happens, rather than relying on a post-crash mechanism (pstore/
-    # ram console) that requires this same kernel to survive and cooperate
-    # to read it back out. /proc/kmsg blocks and yields new lines as they
-    # are logged, so whatever was written before a hang/freeze should
-    # already be safely on disk (ext4, synced every 0.2s) even if the
-    # device is later hard power-cycled to recover it. Started first,
-    # before anything else in this block, since reboots have been
-    # happening in well under 2 seconds.
-    start klog_capture
-    # Diagnostic: give klog_capture's forked "cat /proc/kmsg" a moment to
-    # actually get scheduled and start writing before anything else runs,
-    # since on unlucky boots the whole system has frozen so quickly that
-    # live_kmsg.log never even gets created.
-    exec /system/bin/sleep 1
-
     # Diagnostic: rescue any pstore data left by a previous crashed boot
     # into /cache before anything later in boot has a chance to hang, so
     # it can be pulled from TWRP afterward (TWRP's own kernel lacks pstore
-    # support, so it cannot read /sys/fs/pstore directly).
+    # support, so it cannot read /sys/fs/pstore directly). Cheap one-shot,
+    # left enabled permanently as a safety net.
     mount pstore pstore /sys/fs/pstore
     mkdir /cache/pstore_dump 0770 root root
     exec - root root -- /system/bin/sh -c "cp -a /sys/fs/pstore/. /cache/pstore_dump/ > /cache/pstore_dump.log 2>&1"
+
+    # klog_capture/logcat_capture (see their `service` definitions below) are
+    # NOT auto-started here anymore: boot is stable now (see
+    # suez-boot-regression memory), and both ran forever with a
+    # `sync; sleep 0.2` loop — 5 forced filesystem syncs/sec, permanently,
+    # plus unbounded log growth in /cache — which is real ongoing CPU/IO/
+    # flash-wear overhead with no benefit once boot isn't crash-looping.
+    # If investigating a future crash/bootloop, re-enable temporarily with
+    # `adb shell start klog_capture` / `start logcat_capture`, or add the
+    # `start` lines back here.
 
     # Allow writing to the kernel trace log.
     chmod 0222 /sys/kernel/debug/tracing/trace_marker
@@ -111,13 +116,6 @@ on post-fs
     chown system system /sys/kernel/debug/ion/heaps/ion_mm_heap
 
 on post-fs-data
-    # Diagnostic: continuously capture logcat (userspace/framework log) to
-    # /cache alongside the kernel log, in case boot gets far enough to
-    # reach userspace services (system_server, zygote, etc.) where issues
-    # wouldn't show up in kmsg alone. logd may not be up yet the instant
-    # this fires, so retry until logcat succeeds.
-    start logcat_capture
-
     start amzn_drmprov
     start amzn_dha_hmac
 

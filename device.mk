@@ -58,6 +58,7 @@ PRODUCT_PACKAGES += \
     audio.r_submix.default \
     libaudio-resampler \
     libaudioroute \
+    libaudiospdif \
     libtinyalsa \
     libalsautils \
     libtinycompress \
@@ -69,7 +70,25 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_COPY_FILES += \
     $(DEVICE)/audio/mixer_paths.xml:system/etc/mixer_paths.xml \
-    $(DEVICE)/audio/audio_policy.conf:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy.conf
+    $(DEVICE)/audio/audio_policy.conf:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy.conf \
+    $(DEVICE)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml
+
+# Modern audio policy ENGINE config (product strategies + volume groups with
+# explicit indexMin/indexMax), adapted from the AOSP enginedefault "phone"
+# example. This is read by engineConfig::parse() BEFORE the legacy
+# audio_policy_configuration.xml volume fallback above, and avoids a real bug
+# in that legacy path: AudioPolicyManager::initStreamVolume() silently
+# no-ops whenever indexMin/indexMax is negative, and the legacy volume-file
+# parser always assigns -1/-1 for standard streams (a "let AudioService set
+# the real range later" convention that never actually gets reconciled here),
+# leaving every volume group's native range stuck at 0/0 and volume
+# adjustment permanently broken. With this present, the engine config parses
+# successfully and legacy parsing (and its -1/-1 bug) is never reached.
+PRODUCT_COPY_FILES += \
+    $(DEVICE)/audio/audio_policy_engine_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_engine_configuration.xml \
+    $(DEVICE)/audio/audio_policy_engine_product_strategies.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_engine_product_strategies.xml \
+    $(DEVICE)/audio/audio_policy_engine_stream_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_engine_stream_volumes.xml \
+    $(DEVICE)/audio/audio_policy_engine_default_stream_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_engine_default_stream_volumes.xml
 
 PRODUCT_COPY_FILES += \
     $(TOPDIR)frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/a2dp_audio_policy_configuration.xml \
@@ -148,7 +167,8 @@ PRODUCT_PACKAGES += \
     libshim_sensor \
     libshim_xlog \
     libshim_camera \
-    libshim_audio
+    libshim_audio \
+    libshim_aeabi
 
 # Wifi
 PRODUCT_PACKAGES += \
@@ -185,3 +205,11 @@ $(call inherit-product-if-exists, frameworks/native/build/phone-xxhdpi-2048-hwui
 
 # Get non-open-source specific aspects
 $(call inherit-product-if-exists, $(VENDOR)/suez-vendor.mk)
+
+# system partition is nearly full (~10% free) with no room to grow (the
+# BOARD_SYSTEMIMAGE_PARTITION_SIZE already equals the physical partition
+# size, confirmed via `blockdev --getsize64`), so drop packages added by
+# the inherited common_mobile.mk that aren't essential, to make room for
+# gapps: Backgrounds (wallpaper collection, ~16MB) and Eleven (music
+# player, ~7MB, redundant with any gapps-provided music app).
+PRODUCT_PACKAGES := $(filter-out Backgrounds Eleven,$(PRODUCT_PACKAGES))
