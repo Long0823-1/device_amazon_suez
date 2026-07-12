@@ -128,7 +128,13 @@ USE_OPENGL_RENDERER := true
 TARGET_USES_HWC2 := true
 TARGET_USES_HWC2ON1ADAPTER := true
 SF_START_GRAPHICS_ALLOCATOR_SERVICE := true
-TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK := true
+# The kernel fully supports the sync/fence framework (CONFIG_SYNC=y,
+# CONFIG_SW_SYNC=y), so telling SurfaceFlinger to run WITHOUT it is wrong:
+# without proper fence-based sync, a buffer can be scanned out/composited
+# before the GPU has actually finished writing it, which is a classic cause
+# of tearing and partially-written/garbled frame content -- matching the
+# navbar icon / screenshot-preview corruption seen on this device.
+TARGET_RUNNING_WITHOUT_SYNC_FRAMEWORK := false
 
 # System's VSYNC phase offsets in nanoseconds
 VSYNC_EVENT_PHASE_OFFSET_NS := 7500000
