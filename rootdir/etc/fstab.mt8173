@@ -6,14 +6,6 @@
 /dev/block/platform/mtk-msdc.0/by-name/userdata   /data        ext4   noatime,nosuid,nodev,noauto_da_alloc    check,encryptable=/dev/block/platform/mtk-msdc.0/by-name/metadata
 /dev/block/platform/mtk-msdc.0/by-name/cache      /cache       ext4   noatime,nosuid,nodev,noauto_da_alloc    check
 
-# zram swap: kernel has CONFIG_ZRAM=y (lzo) but nothing was ever wired up to
-# actually use it (the referenced /enableswap.sh /disableswap.sh scripts
-# don't exist anywhere in this tree). On a 2GB RAM device this leaves lmkd
-# killing background apps far more aggressively than necessary. fs_mgr
-# handles swapon automatically for "swap" type entries, no custom script
-# needed.
-/dev/block/zram0                                  none         swap   defaults                                zramsize=75%
-
 
 /devices/soc/11240000.mmc*  auto      auto      defaults        voldmanaged=sdcard1:auto,encryptable=userdata
 /devices/soc/11270000.usb*  auto      auto      defaults        voldmanaged=usbotg:auto
