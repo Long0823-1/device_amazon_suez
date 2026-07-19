@@ -116,9 +116,6 @@ on post-fs
     chown system system /sys/kernel/debug/ion/heaps/ion_mm_heap
 
 on post-fs-data
-    start amzn_drmprov
-    start amzn_dha_hmac
-
     setprop vold.post_fs_data_done 1
 
     # /dev/ttyMT2 for Connectivity BT/FM/GPS usage
@@ -190,6 +187,21 @@ on post-fs-data
     chown system system /persistbackup
 
     start kisd
+    # amzn_drmprov_check and amzn_dha_hmac both connect to kisd; they were
+    # previously started earlier in this same block (before kisd existed),
+    # so they always failed to connect ("Failed to connect kisd"). Must
+    # come after kisd is started.
+    start amzn_drmprov
+    start amzn_dha_hmac
+
+    # The widevine HAL service (vendor.drm-widevine-hal-1-1) needs this
+    # directory for its L3 fallback storage; karnak creates it via an
+    # "on property:init.svc.mediadrm=running" trigger tied to a legacy
+    # service we didn't port, so create it directly here instead. Without
+    # it, WVCdm fails "Could not create base directories for
+    # Level3FileSystem" and TEEClientFactory reports "No tee" without ever
+    # attempting to open /dev/trustzone.
+    mkdir /data/vendor/mediadrm 0770 media mediadrm
 
     # radvd
     mkdir /data/misc/radvd 0770 system system
@@ -773,6 +785,24 @@ service amzn_dha_hmac /vendor/bin/amzn_dha_hmac
 	group system
 	oneshot
 	disabled
+
+# Widevine Modular DRM HAL, sourced from a sibling MTK in-house-TEE Amazon
+# device (karnak, Fire OS 7.3.3.1) since suez's own extracted userspace
+# widevine libraries were an incompatible/incomplete mismatched set (missing
+# libwvhidl.so and this service binary entirely). Matches karnak's real
+# android.hardware.drm@1.1-service.widevine.rc service definition.
+# libwvhidl.so needs google::protobuf::internal::empty_string_, a symbol
+# that no longer exists in this (Android 11) build's newer protobuf-cpp-lite;
+# widevine_priv/ carries karnak's own matching (older) copy, scoped to just
+# this service via LD_LIBRARY_PATH so the rest of the system keeps using the
+# current one.
+service vendor.drm-widevine-hal-1-1 /vendor/bin/hw/android.hardware.drm@1.1-service.widevine
+    class hal
+    user media
+    group media mediadrm drmrpc
+    ioprio rt 4
+    writepid /dev/cpuset/foreground/tasks
+    setenv LD_LIBRARY_PATH /vendor/lib/widevine_priv
 
 service wmtLoader /vendor/bin/wmt_loader
     user root

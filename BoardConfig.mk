@@ -43,6 +43,12 @@ TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_CONFIG := suez_defconfig
 BOARD_KERNEL_CMDLINE := bootopt=64S3,32N2,64N2
 BOARD_KERNEL_CMDLINE += lcm=0-nt51021_wuxga_dsi_vdo
+# The bootloader (LK) always injects console=tty0/ttyS0/ttyMT0 ahead of this
+# cmdline, so the serial console can't be removed by omitting console= here.
+# loglevel=0 suppresses printk output to any console (constant UART traffic
+# at 921600 baud is real overhead) without affecting the kernel ring buffer,
+# so dmesg/logcat -b kernel still capture everything for future debugging.
+BOARD_KERNEL_CMDLINE += loglevel=0
 BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 # Diagnostic: on a first-stage init LOG(FATAL), drop to an interactive
 # shell on /dev/console instead of aborting/rebooting, so the actual

@@ -20,11 +20,13 @@ PRODUCT_PACKAGES += \
     android.hardware.configstore@1.1-service
 
 # DRM
+# android.hardware.drm@1.1-service.clearkey/widevine were never real build
+# targets in this tree -- android.hardware.drm@1.0-service is the one
+# generic HAL that loads whichever vendor mediadrm plugin matches the
+# requested scheme, see manifest.xml for the matching fix.
 PRODUCT_PACKAGES += \
     android.hardware.drm@1.0-impl \
-    android.hardware.drm@1.0-service \
-    android.hardware.drm@1.1-service.clearkey \
-    android.hardware.drm@1.1-service.widevine
+    android.hardware.drm@1.0-service
 
 # Graphics
 PRODUCT_PACKAGES += \

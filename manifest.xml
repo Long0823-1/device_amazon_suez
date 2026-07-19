@@ -8,15 +8,23 @@
             <instance>default</instance>
         </interface>
     </hal>
-    <hal format="hidl">
-        <name>android.hardware.audio.effect</name>
-        <transport>hwbinder</transport>
-        <version>2.0</version>
-        <interface>
-            <name>IEffectsFactory</name>
-            <instance>default</instance>
-        </interface>
-    </hal>
+    <!-- android.hardware.audio.effect@2.0::IEffectsFactory/default was
+         declared here with no backing service anywhere in the vendor tree
+         (no HAL binary, no init.rc service block) and none in suez's own
+         stock Fire OS firmware either (pre-Treble device, never had this
+         HAL). hwservicemanager/init could never satisfy this promise
+         ("Could not find 'android.hardware.audio.effect@2.0::IEffectsFactory/default'
+         for ctl.interface_start"), so every AudioFlinger createEffect()
+         call (IAudioFlinger transaction 41) waited on a service that would
+         never appear, eventually exceeding AudioFlinger's own TimeCheck
+         watchdog and aborting audioserver, tearing down every AudioTrack
+         and, since apps sync video to the audio clock, stalling video
+         playback every ~15-20s regardless of video codec/resolution.
+         Removing the false manifest entry lets AudioFlinger fall straight
+         through to the legacy in-process EffectsFactory (audio_effects.conf,
+         confirmed loading libbundlewrapper/libreverbwrapper/libvisualizer/
+         libdownmix/libldnhncr successfully from /vendor/lib/soundfx/)
+         instead of waiting on a HAL that will never exist. -->
     <hal format="hidl">
         <name>android.hardware.bluetooth</name>
         <transport>hwbinder</transport>
@@ -54,6 +62,15 @@
         </interface>
     </hal>
     <hal format="hidl">
+        <!-- android.hardware.drm@1.0-service registers "default" (generic
+             clearkey/playready via /vendor/lib(64)/mediadrm/*.so plugin
+             discovery). android.hardware.drm@1.1-service.widevine registers
+             "widevine" separately as its own eager (class hal) service,
+             sourced from karnak (a sibling MTK in-house-TEE Amazon device
+             whose Widevine stack is a matched, working set unlike suez's own
+             incomplete/mismatched extraction). A single <hal> block with both
+             instances is required here -- VINTF rejects duplicate <hal> name
+             entries, so this must not be split into two blocks. -->
         <name>android.hardware.drm</name>
         <transport>hwbinder</transport>
         <version>1.0</version>
@@ -67,10 +84,6 @@
             <instance>default</instance>
             <instance>widevine</instance>
         </interface>
-        <fqname>@1.1::ICryptoFactory/clearkey</fqname>
-        <fqname>@1.1::IDrmFactory/clearkey</fqname>
-        <fqname>@1.1::ICryptoFactory/widevine</fqname>
-        <fqname>@1.1::IDrmFactory/widevine</fqname>
     </hal>
     <hal format="hidl">
         <name>android.hardware.graphics.allocator</name>

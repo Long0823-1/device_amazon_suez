@@ -11,6 +11,25 @@ PRODUCT_SOONG_NAMESPACES += $(VENDOR)
 # Device overlay
 DEVICE_PACKAGE_OVERLAYS += $(DEVICE)/overlay
 
+# liboemcrypto.so's TEEClientFactory checks a property (via property_get)
+# to decide which MTK TEE backend to use before ever touching /dev/trustzone;
+# without it, Widevine silently reports "No tee" and falls back to L3,
+# regardless of the kernel actually having a working in-house TEE
+# (CONFIG_MTK_IN_HOUSE_TEE_SUPPORT=y) and the Modular DRM TA being present.
+# The exact property name differs by liboemcrypto.so build: karnak's newer
+# (Treble-era) copy checks "ro.vendor.mtk_in_house_tee_support", while
+# suez's own native (pre-Treble) copy checks the property_get() call site
+# disassembled directly out of createTEEClient() -- it uses the bare,
+# unprefixed name "mtk_in_house_tee_support" with no "ro." or "vendor."
+# at all (confirmed by resolving the PC-relative literal it loads before
+# calling property_get(), which points straight at that exact string in
+# .rodata). All three are harmless to set regardless of which library
+# ends up in use.
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.vendor.mtk_in_house_tee_support=true \
+    ro.mtk_in_house_tee_support=true \
+    mtk_in_house_tee_support=true
+
 $(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
 
 # Device uses high-density artwork where available
