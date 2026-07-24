@@ -77,6 +77,22 @@ Only the three quirks included above are recognized at this point:
 -->
 
 <Included>
+    <!-- suez (MT8173): none of the decoders below declare "adaptive-playback"
+         (Feature that lets MediaCodec reuse a decoder instance and swap its
+         output Surface in place on a resolution/quality change (ExoPlayer's
+         CODEC_REUSE_MODE_REUSE_WITH_RECONFIGURATION) instead of a full
+         stop/release/recreate. Confirmed via logcat + tombstone that this
+         device's proprietary gralloc blob (gralloc.mt8173.img.so) SIGSEGVs
+         inside freeBuffer() when MediaCodec::handleSetSurface() disconnects
+         the old Surface during that in-place swap, crashing mediaserver
+         itself (kills every active decoder/AudioTrack, not just this one).
+         On YouTube this presented as playback stopping a few seconds after a
+         quality-switch attempt, and as being unable to move off 360p (every
+         upgrade attempt hit the crash and mediaserver came back with the
+         stream stuck on its last successful format). No source for the
+         vendor gralloc blob, so the feature that triggers the crash path is
+         left undeclared here: MediaCodec falls back to a normal (slower but
+         safe) decoder recreation on every format change. -->
     <Decoders>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.MPEG2" type="video/mpeg2" >
             <Limit name="size" min="16x16" max="1920x1088" />
@@ -88,42 +104,36 @@ Only the three quirks included above are recognized at this point:
             <Limit name="size" min="64x64" max="4096x2304" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.MPEG4" type="video/mp4v-es" >
             <Limit name="size" min="16x16" max="1920x1088" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.H263" type="video/3gpp" >
             <Limit name="size" min="16x16" max="1920x1088" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.AVC" type="video/avc" >
             <Limit name="size" min="64x64" max="4096x2304" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.VPX" type="video/x-vnd.on2.vp8" >
             <Limit name="size" min="64x64" max="1920x1088" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
         <MediaCodec name="OMX.MTK.VIDEO.DECODER.VP9" type="video/x-vnd.on2.vp9" >
             <Limit name="size" min="64x64" max="4096x2304" />
             <Quirk name="requires-allocate-on-input-ports" />
             <Quirk name="requires-allocate-on-output-ports" />
-            <Feature name="adaptive-playback"/>
             <Limit name="concurrent-instances" max="12" />
         </MediaCodec>
     </Decoders>

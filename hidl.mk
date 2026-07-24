@@ -1,9 +1,32 @@
 # Audio
+# android.hardware.audio.effect@2.0-service is not a real build target --
+# this HAL only ships a passthrough-style -impl library (see manifest.xml
+# for the matching transport fix), no upstream AOSP variant has a
+# standalone service binary for it either.
 PRODUCT_PACKAGES += \
 	android.hardware.audio@2.0-impl \
     android.hardware.audio@2.0-service \
     android.hardware.audio.effect@2.0-impl \
-    android.hardware.audio.effect@2.0-service \
+
+# Audio effect bundle libraries: suez's own proprietary copies of these
+# (previously PRODUCT_COPY_FILES in suez-vendor.mk) are a mismatched/older
+# ABI against this AOSP 11 effects framework -- default media playback's
+# automatic Equalizer effect (part of libbundlewrapper's Bundle) failed
+# SET_CONFIG with EINVAL against the proprietary copy, which cascaded into
+# AudioFlinger's createEffect() (IAudioFlinger transaction 41) never
+# completing and its own TimeCheck watchdog aborting audioserver every
+# ~15s -- tearing down every AudioTrack and stalling video playback since
+# apps sync to the audio clock. All of these have real matching AOSP
+# source (frameworks/av/media/libeffects/*); build from source instead of
+# copying the mismatched prebuilts. libldnhncr.so (MediaTek's own loudness
+# enhancer, no AOSP equivalent) stays a proprietary copy in suez-vendor.mk.
+PRODUCT_PACKAGES += \
+    libbundlewrapper \
+    libreverbwrapper \
+    libdownmix \
+    libvisualizer \
+    libaudiopreprocessing \
+    libeffectproxy
 
 # Bluetooth
 PRODUCT_PACKAGES += \

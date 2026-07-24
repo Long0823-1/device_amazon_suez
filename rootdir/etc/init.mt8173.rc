@@ -585,9 +585,37 @@ on post-fs-data
 
 on boot
     exec u:r:su:s0 root root -- /system/bin/sh /vendor/bin/fix-symlinks.sh
-    
+
+    # Disable the two deepest cpuidle states (state0 "dpidle"/deepidle and
+    # state1 "SODI") on every core. Diagnosed via logcat/pstore analysis of
+    # this device's ~90min-unrecoverable freezes: DPM Watchdog (a kernel
+    # software timer) never caught any of them, which only makes sense if
+    # the CPU itself had stopped executing code entirely -- i.e. a failed
+    # wakeup from one of these two states, whose actual power-domain
+    # sequencing runs as opaque MediaTek SPM microcode (mt_spm_dpidle.c's
+    # dpidle_binary[]/soidle_binary[]) with no source available to fix
+    # directly. state2 "MCDI" and state3 "slidle" are left enabled, keeping
+    # most of the idle power savings; only WFI-adjacent-but-deeper-than-WFI
+    # states 0/1 are cut off. Re-enable (write 0) per-state if this turns
+    # out not to be the cause.
+    write /sys/devices/system/cpu/cpu0/cpuidle/state0/disable 1
+    write /sys/devices/system/cpu/cpu0/cpuidle/state1/disable 1
+    write /sys/devices/system/cpu/cpu1/cpuidle/state0/disable 1
+    write /sys/devices/system/cpu/cpu1/cpuidle/state1/disable 1
+    write /sys/devices/system/cpu/cpu2/cpuidle/state0/disable 1
+    write /sys/devices/system/cpu/cpu2/cpuidle/state1/disable 1
+    write /sys/devices/system/cpu/cpu3/cpuidle/state0/disable 1
+    write /sys/devices/system/cpu/cpu3/cpuidle/state1/disable 1
+
     # Adjust minimum free memory space (default is 2.5M)
     write /proc/sys/vm/min_free_kbytes 32768
+
+    # Low swappiness: with zram re-enabled (fstab.mt8173, LZ4K this time
+    # instead of the LZO that caused stutter before), keep the kernel
+    # conservative about reaching for swap -- treat it as a safety net for
+    # real memory pressure, not a proactive reclaim target competing with
+    # foreground video decode. Default is 60.
+    write /proc/sys/vm/swappiness 10
 
     write /proc/sys/vm/dirty_writeback_centisecs 300
     chmod 0660 /sys/power/autosleep

@@ -56,15 +56,33 @@ BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 # unreliable hardware crash-dump registers.
 BOARD_KERNEL_CMDLINE += androidboot.first_stage_console=1
 # Diagnostic: this kernel's ramoops (fs/pstore/ram.c) predates DT-based
-# auto-probing, so it must be configured via module params on the cmdline.
-# Address/sizes match the reserved-memory node added in mt8173.dtsi.
+# auto-probing (no of_match_table in ram.c; the "ramoops" compatible string
+# on the reserved-memory node in mt8173.dtsi only carves out the physical
+# range, it doesn't bind a driver), so it must be configured via module
+# params on the cmdline. Address/sizes match the reserved-memory node.
+#
+# This was silently failing on every single boot ("ramoops: no room for
+# dumps", probe error -12), regardless of whether a crash had actually
+# happened, so no panic dump was ever captured for the random watchdog
+# reboots this device intermittently hits. Root cause: ramoops_probe()
+# computes dump_mem_sz = mem_size - console_size*2 - ftrace_size -
+# pmsg_size (console_size is counted TWICE, a real, documented ram.c
+# behavior, not a bug) -- the previous console_size=0x20000 alone, when
+# doubled, equals the *entire* 0x40000 mem_size budget, leaving nothing
+# (an unsigned underflow, effectively "negative") for the actual crash-
+# dump zones that record_size carves up, which is the one thing here
+# that actually matters for diagnosing a panic/reset. Rebalanced within
+# the same 0x40000 total: smaller console/ftrace/pmsg allowances, still
+# comfortably leaves room for 5 record_size dump zones (5 * 0x8000 =
+# 0x28000) with margin: 0x8000*2 + 0x2000 + 0x2000 + 0x28000 = 0x3C000 <
+# 0x40000.
 BOARD_KERNEL_CMDLINE += ramoops.mem_address=0x44480000
 BOARD_KERNEL_CMDLINE += ramoops.mem_size=0x40000
 BOARD_KERNEL_CMDLINE += ramoops.mem_type=1
 BOARD_KERNEL_CMDLINE += ramoops.record_size=0x8000
-BOARD_KERNEL_CMDLINE += ramoops.console_size=0x20000
-BOARD_KERNEL_CMDLINE += ramoops.ftrace_size=0x4000
-BOARD_KERNEL_CMDLINE += ramoops.pmsg_size=0x4000
+BOARD_KERNEL_CMDLINE += ramoops.console_size=0x8000
+BOARD_KERNEL_CMDLINE += ramoops.ftrace_size=0x2000
+BOARD_KERNEL_CMDLINE += ramoops.pmsg_size=0x2000
 BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 TARGET_KERNEL_SOURCE := $(KERNEL)
 # Switched from the ancient/unmaintained aarch64-linux-android-4.9 prebuilt to

@@ -8,23 +8,51 @@
             <instance>default</instance>
         </interface>
     </hal>
-    <!-- android.hardware.audio.effect@2.0::IEffectsFactory/default was
-         declared here with no backing service anywhere in the vendor tree
-         (no HAL binary, no init.rc service block) and none in suez's own
-         stock Fire OS firmware either (pre-Treble device, never had this
-         HAL). hwservicemanager/init could never satisfy this promise
-         ("Could not find 'android.hardware.audio.effect@2.0::IEffectsFactory/default'
-         for ctl.interface_start"), so every AudioFlinger createEffect()
-         call (IAudioFlinger transaction 41) waited on a service that would
-         never appear, eventually exceeding AudioFlinger's own TimeCheck
-         watchdog and aborting audioserver, tearing down every AudioTrack
-         and, since apps sync video to the audio clock, stalling video
-         playback every ~15-20s regardless of video codec/resolution.
-         Removing the false manifest entry lets AudioFlinger fall straight
-         through to the legacy in-process EffectsFactory (audio_effects.conf,
-         confirmed loading libbundlewrapper/libreverbwrapper/libvisualizer/
-         libdownmix/libldnhncr successfully from /vendor/lib/soundfx/)
-         instead of waiting on a HAL that will never exist. -->
+    <!-- android.hardware.audio.effect@2.0::IEffectsFactory/default has no
+         standalone hwbinder service anywhere in this tree; only the
+         passthrough-style android.hardware.audio.effect@2.0-impl.so
+         (PRODUCT_PACKAGES in hidl.mk, confirmed built and installed to
+         /vendor/lib(64)/hw/ for both architectures), matching upstream
+         AOSP's own default implementation, which never ships a separate
+         "-service" binary for this HAL either.
+
+         This entry previously declared <transport>hwbinder</transport>,
+         which does not match: LegacySupport's registerPassthroughServiceImplementation()
+         calls getRawServiceInternal(..., getStub=true), which in turn
+         calls IServiceManager::getTransport() and expects the manifest to
+         say "passthrough" for anything it's going to dlopen directly
+         rather than reach over hwbinder; with "hwbinder" declared here
+         instead, that resolution mismatched what's actually provided and
+         the passthrough load failed ("Could not get passthrough
+         implementation for android.hardware.audio.effect@2.0::IEffectsFactory/default"),
+         so AudioFlinger's createEffect() (IAudioFlinger transaction 41)
+         had nothing to talk to, hung, and eventually tripped AudioFlinger's
+         own TimeCheck watchdog, aborting audioserver and stalling video
+         playback (apps sync to the audio clock) every ~15-20s regardless
+         of video codec/resolution. Fixed by declaring the transport as
+         passthrough, matching how android.hardware.graphics.mapper and
+         android.hardware.sensors are declared further down in this same
+         file for the same reason (passthrough-only implementations, no
+         separate service process).
+
+         Earlier attempt history, kept for reference: removing this <hal>
+         entry entirely (to match the DRM HAL fix elsewhere in this file)
+         was tried and made things categorically worse; libaudiohal.so's
+         EffectsFactoryHalInterface::create() -> createPreferredImpl()
+         does not gracefully handle the case where NO version of this HAL
+         is declared in the manifest at all; it null-derefs inside
+         strlen() and audioserver hard-crashes with SIGSEGV on every
+         single boot (a full bootloop), which is strictly worse than the
+         previous watchdog-crash. Do not remove this entry again. -->
+    <hal format="hidl">
+        <name>android.hardware.audio.effect</name>
+        <transport arch="32+64">passthrough</transport>
+        <version>2.0</version>
+        <interface>
+            <name>IEffectsFactory</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
     <hal format="hidl">
         <name>android.hardware.bluetooth</name>
         <transport>hwbinder</transport>

@@ -6,11 +6,17 @@
 /dev/block/platform/mtk-msdc.0/by-name/userdata   /data        ext4   noatime,nosuid,nodev,noauto_da_alloc    check,encryptable=/dev/block/platform/mtk-msdc.0/by-name/metadata
 /dev/block/platform/mtk-msdc.0/by-name/cache      /cache       ext4   noatime,nosuid,nodev,noauto_da_alloc    check
 
-# zram swap: tried 75% and 25%, both caused video playback stutter on this
-# 2GB RAM / quad-core device -- zram's compression/decompression competes
-# with real-time video decode/render for CPU. Left disabled; lmkd killing
-# background apps more readily is a better tradeoff here than dropped frames.
-
+# zram swap: earlier attempts at 75% and 25% both caused video playback
+# stutter on this 2GB RAM / dual-core SoC. Root cause turned out to be the
+# compression backend, not zram itself: CONFIG_ZRAM defaults to LZO (good
+# ratio, high CPU cost per op), which was competing with real-time video
+# decode. Re-enabled at a conservative 15% using MediaTek's own LZ4K
+# compressor instead (suez_defconfig), which is much lighter on CPU per
+# operation. Paired with a low vm.swappiness (init.mt8173.rc) so the
+# kernel only reaches for swap under real memory pressure rather than
+# proactively, instead of tuning zram size back down again if this still
+# isn't enough headroom.
+/dev/block/zram0    none                swap   defaults        zramsize=15%,max_comp_streams=2
 
 /devices/soc/11240000.mmc*  auto      auto      defaults        voldmanaged=sdcard1:auto,encryptable=userdata
 /devices/soc/11270000.usb*  auto      auto      defaults        voldmanaged=usbotg:auto

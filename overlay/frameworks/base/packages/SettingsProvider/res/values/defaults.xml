@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- suez (Fire HD10 2017, PixArt digitizer): the framework default (400ms,
+         Settings > Accessibility > Timing controls "Short") reads normal
+         touches as long-presses on this touchscreen, misfiring
+         long-press/drag actions during ordinary taps. Default to the
+         "Long" preset (1500ms, see
+         packages/apps/Settings/res/values/arrays.xml
+         long_press_timeout_selector_values) instead. Users can still
+         change this in Accessibility settings; this only changes what a
+         fresh install/factory reset starts with. -->
+    <integer name="def_long_press_timeout_millis">1500</integer>
+</resources>
