@@ -19,6 +19,12 @@ extern "C" void* _ZN7android19GraphicBufferMapper4lockEPK13native_handleiRKNS_4R
 		handle, static_cast<uint32_t>(usage), bounds, vaddr);
 }
 
+// Fire OS camera blobs still call the removed two-argument overload.
+extern "C" status_t _ZN7android13GraphicBuffer4lockEjPPv(
+	GraphicBuffer* buffer, uint32_t usage, void** vaddr) {
+	return buffer->lock(usage, vaddr, nullptr, nullptr);
+}
+
 extern "C" void _ZN7android13GraphicBufferC1Ejjij(
 	void *instance, uint32_t inWidth, uint32_t inHeight, android::PixelFormat inFormat, uint32_t inUsage) {}
 extern "C" void _ZN7android13GraphicBufferC1EjjijjP13native_handleb() {}

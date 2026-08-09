@@ -4,6 +4,9 @@ import hashlib
 import sys
 from pathlib import Path
 
+# Fire OS 5.7 crashes Camera@Display in StreamImgBuf while assigning the old
+# ANativeWindowBuffer wrapper. The replacement branches past that assignment
+# and its dimension checks, then resumes at the format and plane-size setup.
 OFFSET = 0x1D58A
 ORIGINAL = bytes.fromhex("f5 f7")
 REPLACEMENT = bytes.fromhex("5c e0")
