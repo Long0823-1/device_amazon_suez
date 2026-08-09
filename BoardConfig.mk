@@ -44,11 +44,27 @@ TARGET_KERNEL_CONFIG := suez_defconfig
 BOARD_KERNEL_CMDLINE := bootopt=64S3,32N2,64N2
 BOARD_KERNEL_CMDLINE += lcm=0-nt51021_wuxga_dsi_vdo
 # The bootloader (LK) always injects console=tty0/ttyS0/ttyMT0 ahead of this
-# cmdline, so the serial console can't be removed by omitting console= here.
-# loglevel=0 suppresses printk output to any console (constant UART traffic
-# at 921600 baud is real overhead) without affecting the kernel ring buffer,
-# so dmesg/logcat -b kernel still capture everything for future debugging.
-BOARD_KERNEL_CMDLINE += loglevel=0
+# cmdline, so the serial console can't be removed by omitting console= here --
+# but CONFIG_SERIAL_8250/CONFIG_SERIAL_8250_CONSOLE/CONFIG_MTK_SERIAL_CONSOLE
+# are disabled at compile time (suez_defconfig), so there is no actual UART
+# console driver registered for these to attach to; the injected console=
+# args are inert.
+#
+# Previously set loglevel=0 here on the theory that it avoided UART overhead.
+# That reasoning no longer applies now that the UART driver itself is gone --
+# what loglevel=0 actually suppresses is console_loglevel, a single global
+# threshold shared by every registered console, including pstore's ramoops
+# console (fs/pstore/platform.c, CON_PRINTBUFFER|CON_ENABLED|CON_ANYTIME).
+# With loglevel=0, virtually nothing reaches ramoops UNLESS some WARN_ON()
+# happens to fire first in that boot session (warn_slowpath_common() calls
+# console_verbose(), which latches console_loglevel to max for the rest of
+# the session) -- an unreliable diagnostic mechanism to depend on. Confirmed
+# via a real freeze/reboot: the ramoops dump was missing the actual trigger
+# for a WiFi/BT combo-chip firmware assert, only capturing the recovery
+# attempt (a WARN_ON happened to fire earlier at boot in that instance).
+# Raise it so ramoops reliably captures full detail on the next crash/hang,
+# with no remaining UART cost to trade off.
+BOARD_KERNEL_CMDLINE += loglevel=7
 BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 # Diagnostic: on a first-stage init LOG(FATAL), drop to an interactive
 # shell on /dev/console instead of aborting/rebooting, so the actual
@@ -177,7 +193,14 @@ MAX_EGL_CACHE_SIZE := 1024*1024
 # Filesystem
 BOARD_BOOTIMAGE_PARTITION_SIZE := 16777216
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 17825792
-BOARD_SYSTEMIMAGE_PARTITION_SIZE := 1692925952
+# suez: bumped from the original 1692925952 (1614.5MB) to match this
+# device's physical /system partition after the manual parted repartition
+# (see the suez-gapps-partition-resize memory/note) -- confirmed via
+# `adb shell blockdev --getsize64 .../by-name/system`. This build will no
+# longer fit on a suez that hasn't been repartitioned first; that's an
+# accepted tradeoff for this personal build, not something to revert
+# without checking first.
+BOARD_SYSTEMIMAGE_PARTITION_SIZE := 2037045760
 #BOARD_USERDATAIMAGE_PARTITION_SIZE := 0x6b4300000 # 28792848384
 BOARD_CACHEIMAGE_PARTITION_SIZE := 444596224
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- suez (MT8173/MT6630): this device's WiFi/BT combo chip kernel
+         driver predates WPA3 and has no SAE support at all (see the
+         suez-wpa3-sae-gap memory): confirmed the same firmware binary as
+         the stock Amazon ROM, so the chip's firmware itself likely does
+         support SAE, but the host kernel driver never learned to ask for
+         it (rejects the SAE AKM suite outright).
+
+         With config_wifiSaeUpgradeEnabled left at its AOSP default (true),
+         ClientModeImpl.updateWifiConfigOnStartConnection() rewrites a
+         saved WPA2-PSK network to SECURITY_TYPE_SAE whenever an in-range
+         AP advertises WPA3-Transition mode (both PSK and SAE in its RSN
+         IE): this is intentional upstream behavior for capable devices,
+         but on this device it hands wpa_supplicant an SAE-only network
+         block. wpa_supplicant's own driver-capability-based AKM
+         stripping (WPA_DRIVER_FLAGS_SAE, wpa_supplicant.c) would
+         correctly fall back to PSK if the network block still listed
+         both, but by then SAE is the *only* option left, so the
+         fallback has nothing to fall back to and the connection fails
+         ("WPA: Failed to select authenticated key management type").
+
+         Disabling the auto-upgrade keeps saved PSK networks as PSK even
+         against a transition-mode AP, letting the connection proceed
+         with WPA2 end-to-end, which this driver already handles fine.
+         This does not help true WPA3-only (SAE-required, no PSK) networks;
+         that gap remains open pending real SAE support in the kernel
+         driver.
+    -->
+    <bool translatable="false" name="config_wifiSaeUpgradeEnabled">false</bool>
+</resources>
